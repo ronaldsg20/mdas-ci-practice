@@ -1,0 +1,160 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+    pipelinesascode.tekton.dev/on-event: push
+    pipelinesascode.tekton.dev/on-target-branch: main
+    pipelinesascode.tekton.dev/task: git-clone
+  name: deploy-on-push
+spec:
+  params:
+  - name: repo_url
+    value: '{{ repo_url }}'
+  - name: revision
+    value: '{{ revision }}'
+  pipelineSpec:
+    params:
+    - name: repo_url
+    - name: revision
+    tasks:
+    - name: fetch-repository
+      params:
+      - name: url
+        value: $(params.repo_url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        name: git-clone
+      workspaces:
+      - name: output
+        workspace: source
+      - name: basic-auth
+        workspace: basic-auth
+    - name: deploy-to-cluster
+      runAfter:
+      - fetch-repository
+      taskSpec:
+        params:
+        - name: repo_url
+        - name: revision
+        steps:
+        - image: quay.io/openshift/origin-cli:latest
+          name: wait-and-deploy
+          env:
+          - name: GIT_AUTH_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: '{{ git_auth_secret }}'
+                key: password
+          script: |
+            #!/bin/bash
+            set -e
+
+            # ---------------------------------------------------------
+            # CONFIGURATION
+            # ---------------------------------------------------------
+            DEPLOYMENT="mdas-ci-practice"
+            CONTAINER_NAME="mdas-ci-practice"
+            WORKFLOW_NAME="Docker Build and Push"
+            IMAGE="ghcr.io/ronaldsg20/mdas-ci-practice:latest"
+            PORT=3000
+
+            REPO_FULL_NAME=$(echo $(params.repo_url) | sed -e 's/https:\/\/github.com\///' -e 's/.git$//')
+            COMMIT_SHA=$(params.revision)
+
+            echo "Target: $REPO_FULL_NAME @ $COMMIT_SHA"
+            echo "Waiting for GitHub Action '$WORKFLOW_NAME' to succeed..."
+
+            # ---------------------------------------------------------
+            # POLLING LOOP (Optimized)
+            # ---------------------------------------------------------
+            MAX_RETRIES=20
+            SLEEP_SEC=45
+            
+            for ((i=1;i<=MAX_RETRIES;i++)); do
+                RESPONSE=$(curl -s -H "Authorization: Bearer $GIT_AUTH_SECRET" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/repos/$REPO_FULL_NAME/commits/$COMMIT_SHA/check-runs")
+
+                if echo "$RESPONSE" | grep -A 20 "\"name\": \"$WORKFLOW_NAME\"" | grep -q "\"conclusion\": \"success\""; then
+                    echo "SUCCESS: GitHub Action '$WORKFLOW_NAME' passed."
+                    break
+                fi
+                
+                if echo "$RESPONSE" | grep -A 20 "\"name\": \"$WORKFLOW_NAME\"" | grep -q "\"conclusion\": \"failure\""; then
+                    echo "FAILURE: GitHub Action '$WORKFLOW_NAME' failed. Aborting deployment."
+                    exit 1
+                fi
+
+                echo "[$i/$MAX_RETRIES] Waiting... Next check in ${SLEEP_SEC}s"
+                sleep $SLEEP_SEC
+                
+                if [ $i -eq $MAX_RETRIES ]; then
+                    echo "TIMEOUT: Waited too long for GitHub Action."
+                    exit 1
+                fi
+            done
+
+            # ---------------------------------------------------------
+            # DEPLOYMENT
+            # ---------------------------------------------------------
+            echo "Starting deployment update for $DEPLOYMENT..."
+
+            # 1. ENSURE DEPLOYMENT EXISTS
+            if ! oc get deployment $DEPLOYMENT > /dev/null 2>&1; then
+                echo "Creating new deployment..."
+                oc create deployment $DEPLOYMENT --image=$IMAGE
+            else
+                echo "Updating existing deployment..."
+                oc scale deployment/$DEPLOYMENT --replicas=0
+                oc set image deployment/$DEPLOYMENT $CONTAINER_NAME=$IMAGE
+                oc scale deployment/$DEPLOYMENT --replicas=1
+            fi
+
+            # 2. HEALTH PROBES (Best Practice)
+            echo "Configuring Health Probes..."
+            # Liveness: Restart if this fails (Is the process running?)
+            oc set probe deployment/$DEPLOYMENT --liveness --get-url=http://:$PORT/ --initial-delay-seconds=15 --timeout-seconds=3
+            # Readiness: Don't send traffic until this passes (Is the app ready to serve?)
+            oc set probe deployment/$DEPLOYMENT --readiness --get-url=http://:$PORT/ --initial-delay-seconds=5 --timeout-seconds=3
+
+            # 3. ENSURE SERVICE EXISTS
+            if ! oc get service $DEPLOYMENT > /dev/null 2>&1; then
+                echo "Creating service..."
+                oc expose deployment $DEPLOYMENT --port=$PORT --target-port=$PORT
+            fi
+
+            # 4. ENSURE ROUTE EXISTS
+            if ! oc get route $DEPLOYMENT > /dev/null 2>&1; then
+                echo "Creating route..."
+                oc expose service $DEPLOYMENT
+            fi
+
+            echo "Deployment process complete."
+            echo "Public URL: http://$(oc get route $DEPLOYMENT -o jsonpath='{.spec.host}')"
+            
+            echo "!!! IMPORTANT REMINDER !!!"
+            echo "If your GHCR image is PRIVATE, verify your cluster has the 'imagePullSecret' configured."
+            echo "Otherwise, the pods will fail with 'ImagePullBackOff'."
+          workingDir: $(workspaces.source.path)
+        workspaces:
+        - name: source
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - name: source
+    - name: basic-auth
+  workspaces:
+  - name: source
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+  - name: basic-auth
+    secret:
+      secretName: '{{ git_auth_secret }}'
