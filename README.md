@@ -27,7 +27,7 @@ Simple REST API that returns "Hello World!" - deployed to OpenShift with automat
 ### Example
 
 ```bash
-curl https://mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
+curl http://mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
 ```
 
 **Response:**
@@ -190,28 +190,11 @@ docker pull ghcr.io/ronaldsg20/mdas-ci-practice:staging
 
 - **Environment:** Development
 - **Namespace:** `rylangraham02-dev`
-- **URL:** https://mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
+- **URL:** http://mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
 
-### Manual Deployment
+### Deployment
 
-If you need to deploy manually:
-
-```bash
-# Apply the deployment configuration
-oc apply -f openshift-deployment.yaml
-
-# Check status
-oc get pods,svc,route
-
-# View logs
-oc logs deployment/mdas-ci-practice
-```
-
-### Automated Deployment
-
-**Coming Soon:** Tekton Pipelines integration for automatic deployment on branch push.
-
-See [`WEBHOOK_SETUP.md`](./WEBHOOK_SETUP.md) for configuration details.
+Deployments are automated via Tekton Pipelines when pushing to environment branches.
 
 ---
 
@@ -228,7 +211,6 @@ View security results: [GitHub Security Tab](https://github.com/ronaldsg20/mdas-
 
 ## 📚 Additional Documentation
 
-- [Webhook Setup Guide](./WEBHOOK_SETUP.md) - For repository admins
 - [Implementation Plan](./docs/implementation_plan.md) - Full CI/CD roadmap (coming soon)
 
 ---
