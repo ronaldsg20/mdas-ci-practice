@@ -1,0 +1,86 @@
+name: Security Scan with Snyk
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly security scan every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  snyk-scan:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write # For GitHub Security tab
+      pull-requests: write   # For PR comments
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # Scan Node.js dependencies for vulnerabilities
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true # Don't fail the build yet, just report
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects --sarif-file-output=snyk.sarif
+
+      # Upload results to GitHub Security tab
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+
+      # Scan Docker image for vulnerabilities
+      - name: Build Docker Image for Scanning
+        run: |
+          docker build -t mdas-ci-practice:scan .
+
+      - name: Run Snyk to check Docker image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: mdas-ci-practice:scan
+          args: --severity-threshold=high --file=Dockerfile
+
+      # Monitor project in Snyk dashboard
+      - name: Monitor with Snyk (main branch only)
+        if: github.ref == 'refs/heads/main'
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+          args: --all-projects
+
+      # Comment on PR with results
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Security vulnerabilities detected by Snyk!**\n\nPlease review the security tab for details.'
+            })

@@ -12,12 +12,14 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# OS
+# OS-specific files
 .DS_Store
+Thumbs.db
 
 # Tests
 /coverage
 /.nyc_output
+*.lcov
 
 # IDEs and editors
 /.idea
@@ -27,9 +29,11 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
-
-# IDE - VSCode
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
 # dotenv environment variable files
 .env
@@ -51,6 +55,16 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-
-#bats
+# Temporary scripts and debug files (team-specific)
 *.ps1
+debug_*.yaml
+*-debug.yaml
+fix_*.yaml
+install-*.sh
+
+# OpenShift/Kubernetes temporary files
+*.tmp.yaml
+*.backup.yaml
+
+# Snyk
+.snyk
