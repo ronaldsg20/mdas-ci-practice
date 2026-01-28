@@ -1,0 +1,81 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: deploy-to-openshift
+  namespace: rylangraham02-dev
+spec:
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+    - name: git-revision
+      type: string
+      description: Git revision to deploy
+      default: develop
+    - name: environment
+      type: string
+      description: Target environment (dev, staging, prod)
+      default: dev
+    - name: image-tag
+      type: string
+      description: Docker image tag to deploy
+      default: develop
+
+  workspaces:
+    - name: source
+
+  tasks:
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      workspaces:
+        - name: output
+          workspace: source
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+        - name: deleteExisting
+          value: "true"
+
+    - name: wait-for-docker-build
+      runAfter:
+        - fetch-repository
+      taskRef:
+        name: wait-for-github-workflow
+      params:
+        - name: repo-owner
+          value: ronaldsg20
+        - name: repo-name
+          value: mdas-ci-practice
+        - name: workflow-name
+          value: Docker Build and Push
+        - name: git-sha
+          value: $(params.git-revision)
+
+    - name: deploy-with-kustomize
+      runAfter:
+        - wait-for-docker-build
+      taskRef:
+        name: kustomize-deploy
+      workspaces:
+        - name: source
+          workspace: source
+      params:
+        - name: environment
+          value: $(params.environment)
+        - name: namespace
+          value: rylangraham02-$(params.environment)
+
+    - name: verify-deployment
+      runAfter:
+        - deploy-with-kustomize
+      taskRef:
+        name: verify-rollout
+      params:
+        - name: deployment-name
+          value: $(params.environment)-mdas-ci-practice
+        - name: namespace
+          value: rylangraham02-$(params.environment)
