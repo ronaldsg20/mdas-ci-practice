@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mdas-ci-practice
+  labels:
+    app: mdas-ci-practice
+spec:
+  to:
+    kind: Service
+    name: mdas-ci-practice
+  port:
+    targetPort: http
