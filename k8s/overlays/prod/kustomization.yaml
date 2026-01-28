@@ -3,13 +3,15 @@ kind: Kustomization
 
 namespace: rylangraham02-prod
 
-bases:
+resources:
   - ../../base
 
 namePrefix: prod-
 
-commonLabels:
-  environment: production
+labels:
+  - pairs:
+      environment: production
+    includeSelectors: true
 
 images:
   - name: ghcr.io/ronaldsg20/mdas-ci-practice

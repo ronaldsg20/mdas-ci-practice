@@ -3,13 +3,15 @@ kind: Kustomization
 
 namespace: rylangraham02-dev
 
-bases:
+resources:
   - ../../base
 
 namePrefix: dev-
 
-commonLabels:
-  environment: development
+labels:
+  - pairs:
+      environment: development
+    includeSelectors: true
 
 images:
   - name: ghcr.io/ronaldsg20/mdas-ci-practice
