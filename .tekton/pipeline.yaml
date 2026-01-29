@@ -26,9 +26,21 @@ spec:
 
   tasks:
     - name: fetch-repository
-      taskRef:
-        name: git-clone
-        kind: ClusterTask
+      taskSpec:
+        params:
+          - name: url
+          - name: revision
+        workspaces:
+          - name: output
+        steps:
+          - name: clone
+            image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:latest
+            script: |
+              #!/bin/sh
+              set -e
+              git clone $(params.url) $(workspaces.output.path)
+              cd $(workspaces.output.path)
+              git checkout $(params.revision)
       workspaces:
         - name: output
           workspace: source
@@ -37,8 +49,6 @@ spec:
           value: $(params.git-url)
         - name: revision
           value: $(params.git-revision)
-        - name: deleteExisting
-          value: "true"
 
     - name: wait-for-docker-build
       runAfter:
