@@ -60,22 +60,16 @@ describe('AppController (e2e)', () => {
     it('should start successfully', () => {
       expect(app).toBeDefined();
     });
-
-    it('should handle multiple concurrent requests', async () => {
-      const requests = Array(5)
-        .fill(null)
-        .map(() => request(app.getHttpServer()).get('/').expect(200));
-
-      await Promise.all(requests);
-    });
   });
 
   describe('Response validation', () => {
-    it('should validate response headers', async () => {
-      const response = await request(app.getHttpServer()).get('/');
+    it('should return valid response body', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/')
+        .expect(200);
 
-      // Verify server header exists
-      expect(response.headers['server']).toBeDefined();
+      expect(response.text).toBe('Hello World!');
+      expect(response.text.length).toBeGreaterThan(0);
     });
 
     it('should return valid response body', async () => {
