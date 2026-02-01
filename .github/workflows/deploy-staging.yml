@@ -1,7 +1,10 @@
 name: Deploy to OpenShift STAGING
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Docker Build and Push"]
+    types:
+      - completed
     branches:
       - staging
   workflow_dispatch:
