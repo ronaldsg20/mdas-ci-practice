@@ -71,14 +71,5 @@ describe('AppController (e2e)', () => {
       expect(response.text).toBe('Hello World!');
       expect(response.text.length).toBeGreaterThan(0);
     });
-
-    it('should return valid response body', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/')
-        .expect(200);
-
-      expect(response.text).toBe('Hello World!');
-      expect(response.text.length).toBeGreaterThan(0);
-    });
   });
 });
