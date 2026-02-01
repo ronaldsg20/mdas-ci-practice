@@ -14,3 +14,9 @@ resources:
 images:
   - name: ghcr.io/ronaldsg20/mdas-ci-practice
     newTag: develop
+
+patches:
+  - path: route-patch.yaml
+    target:
+      kind: Route
+      name: mdas-ci-practice
