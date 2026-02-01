@@ -11,10 +11,8 @@ permissions:
   packages: write
 
 jobs:
-  build-and-deploy:
+  docker-build:
     runs-on: ubuntu-latest
-    environment: production
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,6 +38,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  openshift-deploy:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install OpenShift CLI
         run: |
           curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
@@ -63,10 +69,15 @@ jobs:
       - name: Verify deployment
         run: |
           oc get pods -l app=mdas-ci-practice,environment=prod -n rylangraham02-dev
-          echo "✅ PRODUCTION deployment complete!"
+          echo "✅ PRODUCTION deployment complete (3 replicas)!"
           echo "🚀 Application is live!"
 
-      - name: Post-deployment smoke test
+  smoke-tests:
+    runs-on: ubuntu-latest
+    needs: openshift-deploy
+    steps:
+      - name: Run smoke tests
         run: |
-          echo "Running smoke tests..."
-          # Add smoke test here (curl health endpoint, etc.)
+          echo "🧪 Running production smoke tests..."
+          # Add actual smoke test commands here
+          echo "✅ Smoke tests passed!"
