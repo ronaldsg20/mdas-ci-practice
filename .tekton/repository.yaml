@@ -1,0 +1,12 @@
+apiVersion: "pipelinesascode.tekton.dev/v1alpha1"
+kind: Repository
+metadata:
+  name: mdas-ci-practice
+  namespace: rylangraham02-dev
+spec:
+  url: "https://github.com/ronaldsg20/mdas-ci-practice"
+  git_provider:
+    type: github
+    secret:
+      name: "pipelines-as-code-secret"
+      key: "provider.token"
