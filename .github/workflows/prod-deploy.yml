@@ -58,19 +58,46 @@ jobs:
           oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
           oc project rylangraham02-dev
 
-      - name: Deploy to PROD
+      - name: Blue-Green Deployment
         run: |
-          oc apply -k k8s/overlays/prod
-          
-      - name: Wait for rollout
-        run: |
-          oc rollout status deployment/prod-mdas-ci-practice -n rylangraham02-dev --timeout=5m
+          echo "🔎 Detecting Active Environment..."
+          # Get current active service from Route (defaults to 'none' if route missing)
+          ACTIVE_SERVICE=$(oc get route prod-mdas-ci-practice -n rylangraham02-dev -o jsonpath='{.spec.to.name}' 2>/dev/null || echo "none")
 
-      - name: Verify deployment
-        run: |
-          oc get pods -l app=mdas-ci-practice,environment=prod -n rylangraham02-dev
-          echo "✅ PRODUCTION deployment complete (3 replicas)!"
-          echo "🚀 Application is live!"
+          if [[ "$ACTIVE_SERVICE" == "prod-blue-mdas-ci-practice" ]]; then
+            echo "🔵 Current Active: BLUE"
+            TARGET_COLOR="green"
+            IDLE_OVERLAY="k8s/overlays/prod-green"
+          elif [[ "$ACTIVE_SERVICE" == "prod-green-mdas-ci-practice" ]]; then
+            echo "🟢 Current Active: GREEN"
+            TARGET_COLOR="blue"
+            IDLE_OVERLAY="k8s/overlays/prod-blue"
+          else
+            echo "⚪ No active route found (First run). Defaulting to BLUE deployment."
+            TARGET_COLOR="blue"
+            IDLE_OVERLAY="k8s/overlays/prod-blue"
+          fi
+
+          echo "🚀 Deploying to IDLE Environment: $TARGET_COLOR"
+
+          # Deploy to Idle Color
+          oc apply -k $IDLE_OVERLAY
+
+          # Wait for Readiness
+          echo "⏳ Waiting for $TARGET_COLOR deployment to be ready..."
+          oc rollout status deployment/prod-$TARGET_COLOR-mdas-ci-practice -n rylangraham02-dev --timeout=5m
+
+          # Switch Traffic
+          if [[ "$ACTIVE_SERVICE" == "none" ]]; then
+            echo "🆕 Creating Main Route (prod-mdas-ci-practice)..."
+            oc expose service prod-$TARGET_COLOR-mdas-ci-practice --name=prod-mdas-ci-practice -n rylangraham02-dev
+          else
+            echo "🔀 Switching traffic to $TARGET_COLOR..."
+            oc patch route prod-mdas-ci-practice -n rylangraham02-dev -p "{\"spec\":{\"to\":{\"name\":\"prod-$TARGET_COLOR-mdas-ci-practice\"}}}"
+          fi
+
+          echo "✅ SUCCESS: Traffic is now served by $TARGET_COLOR 🚀"
+
 
   smoke-tests:
     runs-on: ubuntu-latest

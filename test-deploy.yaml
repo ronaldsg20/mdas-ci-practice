@@ -1,0 +1,26 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: deploy-dev-manual-
+  namespace: rylangraham02-dev
+spec:
+  pipelineRef:
+    name: deploy-to-openshift
+  params:
+    - name: git-url
+      value: https://github.com/ronaldsg20/mdas-ci-practice.git
+    - name: git-revision
+      value: develop
+    - name: environment
+      value: dev
+    - name: image-tag
+      value: develop
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
