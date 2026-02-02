@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rylangraham02-dev
+
+namePrefix: staging-
+
+commonLabels:
+  environment: staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/ronaldsg20/mdas-ci-practice
+    newTag: staging
+
+patches:
+  - path: route-patch.yaml
+    target:
+      kind: Route
+      name: mdas-ci-practice
+
+replicas:
+  - name: mdas-ci-practice
+    count: 2

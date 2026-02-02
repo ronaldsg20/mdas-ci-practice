@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mdas-ci-practice
+  labels:
+    app: mdas-ci-practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mdas-ci-practice
+  template:
+    metadata:
+      labels:
+        app: mdas-ci-practice
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/ronaldsg20/mdas-ci-practice:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"

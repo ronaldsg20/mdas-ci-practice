@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mdas-ci-practice
+spec:
+  port:
+    targetPort: 8080
+  to:
+    kind: Service
+    name: mdas-ci-practice
+    weight: 100
+  wildcardPolicy: None
