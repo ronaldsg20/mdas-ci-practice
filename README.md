@@ -19,16 +19,35 @@ Welcome to the **MDAS CI Practice** repository. This project demonstrates a comp
 
 ## 🏗️ Topology & Architecture
 
-This project uses a advanced multi-environment architecture with progressive stability.
+This project uses a advanced multi-environment architecture with progressive stability:
 
-- **Development:** Single replica, fast deployment.
-- **Staging:** Dual replicas, E2E testing gate.
-- **Production:** **Blue-Green Deployment** (Zero Downtime).
-  - Uses `prod-blue` and `prod-green` environments.
-  - Automatically switches traffic without user impact.
+1.  **Development:** Single replica, fast deployment.
+2.  **Staging:** Dual replicas, High Availability tests, E2E gating.
+3.  **Production:** **Native Blue-Green Deployment** (Zero Downtime).
 
-For deep details on the pipeline, workflows, and diagrams, see:
+For deep details on the pipeline, workflows, and Blue-Green logic, see:
 👉 **[CI/CD Documentation](CI-CD.md)**
+
+---
+
+## 📂 Project Structure
+
+A quick guide to the key files in this repository:
+
+```text
+├── .github/workflows/    # GitHub Actions pipelines (CI/CD logic)
+├── k8s/
+│   ├── base/             # Common Kubernetes resources (Deployment, Service)
+│   ├── overlays/         # Environment specific configurations
+│   │   ├── dev/          # Development overlay
+│   │   ├── staging/      # Staging overlay
+│   │   ├── prod-blue/    # Production Blue Slice
+│   │   └── prod-green/   # Production Green Slice
+├── src/                  # NestJS Application Source Code
+├── test/                 # E2E Test Suite
+├── CI-CD.md              # Detailed Pipeline Documentation
+└── README.md             # This file
+```
 
 ---
 
@@ -45,9 +64,6 @@ npm run start:dev
 npm test         # Unit Tests
 npm run test:e2e # E2E Tests
 ```
-
-### 3. Contribution
-Push to `develop` to trigger the CI pipeline. Create a PR to `staging` to promote.
 
 ---
 
