@@ -1,127 +1,127 @@
-# CI/CD Automation & Architecture 🛠️
+# CI/CD Automation - Complete Implementation ✅
 
-This document details the CI/CD pipeline implemented in this project. It is designed for **automation**, **security**, and **reliability**.
+## Final Workflow Structure
 
-## 🔄 The Pipeline at a Glance
+### Pull Request Workflows (Quality Gates)
 
-The pipeline distinguishes clearly between **Continuous Integration (CI)**, which happens on Pull Requests, and **Continuous Deployment (CD)**, which happens on Merge (Push).
+**DEV PR** (`dev-pr.yml`)
+```
+lint → unit-tests → security-scan
+```
 
-| Phase | Trigger | Goal | Workflows Involved |
-|-------|---------|------|--------------------|
-| **1. Integration (CI)** | Open/Update **Pull Request** | Verify code quality, security, and tests *before* merging. | `dev-pr.yml`, `staging-pr.yml`, `prod-pr.yml` |
-| **2. Deployment (CD)** | **Merge** (Push) to Branch | Build Docker image and update the live environment. | `dev-deploy.yml`, `staging-deploy.yml`, `prod-deploy.yml` |
+**STAGING PR** (`staging-pr.yml`)
+```
+lint → unit-tests → security-scan → e2e-tests
+```
 
----
+**PROD PR** (`prod-pr.yml`)
+```
+lint → unit-tests → security-scan (high severity) → e2e-tests
+```
 
-## 🚦 Workflow Stages Breakdown
+### Deploy Workflows
 
-### 1. Development (Fast Loop)
+**DEV Deploy** (`dev-deploy.yml`)
+```
+docker-build → openshift-deploy
+```
 
-**Target Environment:** `rylangraham02-dev`
+**STAGING Deploy** (`staging-deploy.yml`)
+```
+docker-build → openshift-deploy (2 replicas)
+```
 
-#### A. Pull Request (`dev-pr.yml`)
-*Trigger: PR to `develop`*
-1.  **Lint:** Checks code style (ESLint).
-2.  **Unit Tests:** Runs `npm test`.
-3.  **Security Scan:** Runs Snyk to check for vulnerabilities in dependencies.
-    *   *Result:* Must pass all 3 to allow merge.
+**PROD Deploy** (`prod-deploy.yml`)
+```
+docker-build → openshift-deploy (3 replicas) → smoke-tests
+```
 
-#### B. Deployment (`dev-deploy.yml`)
-*Trigger: Merge to `develop`*
-1.  **Docker Build:** Builds image tag `:develop`. Pushes to GitHub Container Registry.
-2.  **OpenShift Deploy:**
-    *   Logs in to OpenShift.
-    *   Applies `k8s/overlays/dev` (Rolling Update, 1 Replica).
-    *   Verifies rollout status.
+## Progressive Quality Gates
 
----
+| Environment | Replicas | PR Jobs | Security Threshold |
+|-------------|----------|---------|-------------------|
+| DEV         | 1        | lint, unit, snyk | medium |
+| STAGING     | 2        | lint, unit, snyk, e2e | medium |
+| PROD        | 3        | lint, unit, snyk, e2e + smoke | high |
 
-### 2. Staging (Quality Gate)
+## E2E Test Suite
 
-**Target Environment:** `rylangraham02-dev` (Staging Service)
+Comprehensive tests covering:
+- ✅ Root endpoint validation (status, content-type, <500ms)
+- ✅ Error handling (404s, invalid methods)
+- ✅ Application health (concurrent requests)
+- ✅ Response validation (headers, body integrity)
+- ✅ 10+ test cases total
 
-#### A. Pull Request (`staging-pr.yml`)
-*Trigger: PR to `staging`*
-1.  **Lint & Unit Tests:** Regression check.
-2.  **Security Scan:** Ensures no new vulnerabilities.
-3.  **E2E Tests:** Runs `npm run test:e2e` against the code.
-    *   *Critical:* Validates API endpoints, headers, and error handling.
+## Docker Image Tagging
 
-#### B. Deployment (`staging-deploy.yml`)
-*Trigger: Merge to `staging`*
-1.  **Docker Build:** Builds image tag `:staging`.
-2.  **OpenShift Deploy:**
-    *   Applies `k8s/overlays/staging`.
-    *   **2 Replicas:** Tests high availability configuration.
+| Branch | Image Tags |
+|--------|-----------|
+| `develop` | `develop`, `develop-{sha}` |
+| `staging` | `staging`, `staging-{sha}` |
+| `main` | `latest`, `prod-{sha}` |
 
----
-
-### 3. Production (Zero Downtime)
-
-**Target Environment:** `rylangraham02-dev` (Production Service)
-
-#### A. Pull Request (`prod-pr.yml`)
-*Trigger: PR to `main`*
-1.  **Full Suite:** Lint, Unit, Snyk (High Severity Threshold), E2E.
-2.  **Strict Gate:** Blocks merge on *any* failure.
-
-#### B. Deployment (`prod-deploy.yml`) 🔵/🟢
-*Trigger: Merge to `main`*
-1.  **Docker Build:** Builds image tag `:latest` and `:prod-{sha}`.
-2.  **Native Blue-Green Deployment:**
-    *   **Detect Active:** Checks if Main Route points to Blue or Green.
-    *   **Deploy Idle:** If Blue is active, deploys to Green (and vice versa).
-    *   **Wait:** Verifies the new deployment is 100% ready.
-    *   **Switch:** Updates Main Route to point to the new color.
-    *   *Result:* Zero downtime switch for users.
-3.  **Smoke Tests:**
-    *   Executes `curl` against the Production URL.
-    *   Must return `200 OK` to succeed.
-
----
-
-## �️ Infrastructure Topology
-
-The project uses **Kustomize** to manage environment differences without duplicating code.
+## Workflow Architecture
 
 ```mermaid
 graph TD
-    Base[Base Config] --> Dev[Dev Overlay]
-    Base --> Stage[Staging Overlay]
-    Base --> ProdBlue[Prod-Blue Overlay]
-    Base --> ProdGreen[Prod-Green Overlay]
-
-    Dev -->|Deploy| ClusterDev{OpenShift Dev}
-    Stage -->|Deploy| ClusterStage{OpenShift Staging}
-    ProdBlue -->|Switchable| ClusterProd{OpenShift Prod}
-    ProdGreen -->|Switchable| ClusterProd
+    A[Feature Branch] --> B[PR to develop]
+    B --> C{dev-pr.yml}
+    C --> D[lint job]
+    D --> E[unit-tests job]
+    E --> F[security-scan job]
+    F --> G{All Pass?}
+    
+    G -->|Yes| H[Merge to develop]
+    H --> I{dev-deploy.yml}
+    I --> J[docker-build job]
+    J --> K[openshift-deploy job]
+    K --> L[DEV Live - 1 pod]
+    
+    L --> M[PR to staging]
+    M --> N{staging-pr.yml}
+    N --> O[lint → unit → snyk → e2e]
+    O --> P{All Pass?}
+    
+    P -->|Yes| Q[Merge to staging]
+    Q --> R{staging-deploy.yml}
+    R --> S[docker-build → deploy]
+    S --> T[STAGING Live - 2 pods]
 ```
 
-### Key Files
-- `k8s/base/`: Common Deployment, Service, and Route definitions.
-- `k8s/overlays/prod-blue/route-patch.yaml`: "I am the Blue Service".
-- `k8s/overlays/prod-green/route-patch.yaml`: "I am the Green Service".
-- `.github/workflows/prod-deploy.yml`: The logic script that orchestrates the traffic switch.
+## Current Deployments
 
----
+**DEV Environment:**
+- Namespace: `rylangraham02-dev`
+- Deployment: `dev-mdas-ci-practice`
+- Replicas: 1
+- Image: `ghcr.io/ronaldsg20/mdas-ci-practice:develop`
+- URL: http://dev-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
+- Status: ✅ Running
 
-## 🕵️‍♂️ Monitoring & Verification
+**STAGING Environment:**
+- URL: http://staging-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
+- Status: Ready to deploy (waiting for PR merge)
 
-### How to Check Production Status
-To see which "Color" is currently serving traffic:
+**PROD Environment:**
+- URL: http://prod-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com
+- Status: Ready to deploy (waiting for PR merge)
 
-**CLI Command:**
-```bash
-oc get route prod-mdas-ci-practice -n rylangraham02-dev -o jsonpath='Active Service: {.spec.to.name}'
-```
+## Topology
 
-**Output Key:**
-- `prod-blue-mdas-ci-practice` = **BLUE** is Live 🔵
-- `prod-green-mdas-ci-practice` = **GREEN** is Live 🟢
+**Workflows:**
+- `.github/workflows/dev-pr.yml`
+- `.github/workflows/dev-deploy.yml`
+- `.github/workflows/staging-pr.yml`
+- `.github/workflows/staging-deploy.yml`
+- `.github/workflows/prod-pr.yml`
+- `.github/workflows/prod-deploy.yml`
 
-### Live Links
-| Env | URL |
-|-----|-----|
-| **Dev** | [Link](http://dev-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com) |
-| **Staging** | [Link](http://staging-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com) |
-| **Prod** | [Link](http://prod-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com) |
+**Tests:**
+- `test/app.e2e-spec.ts` (10+ comprehensive tests)
+
+**Infrastructure:**
+- `k8s/base/` (deployment, service, kustomization)
+- `k8s/overlays/dev/` (1 replica, develop tag)
+- `k8s/overlays/staging/` (2 replicas, staging tag)
+- `k8s/overlays/prod/` (3 replicas, latest tag)
