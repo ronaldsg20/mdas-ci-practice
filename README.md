@@ -16,6 +16,8 @@ A NestJS application demonstrating a complete, automated CI/CD pipeline using **
 ## 🛠️ CI/CD Architecture
 
 This project uses **GitHub Actions** for both CI (Integration) and CD (Deployment).
+For deep details on the pipeline, workflows, and diagrams, see:
+👉 **[CI/CD Documentation](CI-CD.md)**
 
 ### Workflows
 - **Pull Requests (CI)**:
@@ -67,13 +69,12 @@ This project uses **GitHub Actions** for both CI (Integration) and CD (Deploymen
 - **E2E Tests**: `npm run test:e2e` (Validates endpoints, health, headers)
 - **Security**: Snyk scans for vulnerabilities on every PR.
 
-## 📂 Project Structure
+## 🏗️ Topology & Architecture
 
-```
-├── .github/workflows/   # CI/CD definitions
-├── k8s/                 # Kubernetes manifests (Kustomize)
-│   ├── base/            # Common resources
-│   └── overlays/        # Env-specific config (replicas, tags)
-├── src/                 # NestJS source code
-└── test/                # E2E test suite
-```
+This project uses a advanced multi-environment architecture with progressive stability.
+
+- **Development:** Single replica, fast deployment.
+- **Staging:** Dual replicas, E2E testing gate.
+- **Production:** **Blue-Green Deployment** (Zero Downtime).
+  - Uses `prod-blue` and `prod-green` environments.
+  - Automatically switches traffic without user impact.
