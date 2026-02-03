@@ -78,3 +78,5 @@ This project uses a advanced multi-environment architecture with progressive sta
 - **Production:** **Blue-Green Deployment** (Zero Downtime).
   - Uses `prod-blue` and `prod-green` environments.
   - Automatically switches traffic without user impact.
+
+Boot. 
