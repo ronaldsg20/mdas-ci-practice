@@ -106,5 +106,18 @@ jobs:
       - name: Run smoke tests
         run: |
           echo "🧪 Running production smoke tests..."
-          # Add actual smoke test commands here
-          echo "✅ Smoke tests passed!"
+          PROD_URL="http://prod-mdas-ci-practice-rylangraham02-dev.apps.rm1.0a51.p1.openshiftapps.com"
+          
+          echo "Checking URL: $PROD_URL"
+          for i in {1..5}; do
+            if curl -f -I "$PROD_URL"; then
+              echo "✅ Endpoint is reachable and returned 200 OK!"
+              echo "✅ Smoke tests passed!"
+              exit 0
+            fi
+            echo "⚠️ Endpoint verification failed (Attempt $i/5). Retrying in 10s..."
+            sleep 10
+          done
+          
+          echo "❌ Smoke tests FAILED after 5 attempts."
+          exit 1
