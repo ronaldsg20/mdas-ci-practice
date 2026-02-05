@@ -60,6 +60,9 @@ jobs:
 
       - name: Deploy to DEV
         run: |
+          cd k8s/overlays/dev
+          kustomize edit set image ghcr.io/${{ github.repository }}:develop-${{ github.sha }}
+          cd ../../..
           oc apply -k k8s/overlays/dev
           
       - name: Wait for rollout
