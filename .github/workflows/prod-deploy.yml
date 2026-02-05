@@ -80,6 +80,11 @@ jobs:
 
           echo "🚀 Deploying to IDLE Environment: $TARGET_COLOR"
 
+          # Update Image Tag in Idle Overlay
+          cd $IDLE_OVERLAY
+          kustomize edit set image ghcr.io/${{ github.repository }}:prod-${{ github.sha }}
+          cd - > /dev/null
+
           # Deploy to Idle Color
           oc apply -k $IDLE_OVERLAY
 
