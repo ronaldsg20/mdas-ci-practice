@@ -60,6 +60,9 @@ jobs:
 
       - name: Deploy to STAGING
         run: |
+          cd k8s/overlays/staging
+          kustomize edit set image ghcr.io/${{ github.repository }}:staging-${{ github.sha }}
+          cd ../../..
           oc apply -k k8s/overlays/staging
           
       - name: Wait for rollout

@@ -17,6 +17,7 @@ spec:
       containers:
         - name: app
           image: ghcr.io/ronaldsg20/mdas-ci-practice:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               protocol: TCP
